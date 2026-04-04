@@ -1,121 +1,143 @@
-"""核心抓取服务"""
-import httpx
-from bs4 import BeautifulSoup
-from typing import Optional, Dict, Any, List
-from urllib.parse import urljoin, urlparse
-import os
-
-from config import settings
-from utils import normalize_url
-
-
-# 是否跳过 SSL 验证（开发环境使用）
-SSL_VERIFY = os.getenv("SSL_VERIFY", "true").lower() != "false"
-
-
-async def scrape_url(
+async def extract_content(
     url: str,
-    selector: Optional[str] = None,
-    output_format: str = "json",
+    extract_type: str,
+    custom_schema: Optional[Dict[str, str]] = None,
     timeout: int = 30,
 ) -> Dict[str, Any]:
-    """抓取URL并提取内容"""
+    """智能内容提取"""
     url = normalize_url(url)
     
     async with httpx.AsyncClient(
         timeout=timeout,
         follow_redirects=True,
         verify=SSL_VERIFY,
-        headers={
-            "User-Agent": settings.user_agent,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        },
+        headers={"User-Agent": settings.user_agent},
     ) as client:
         response = await client.get(url)
         response.raise_for_status()
         html_content = response.text
-        status_code = response.status_code
     
     soup = BeautifulSoup(html_content, "lxml")
     
     result = {
-        "status_code": status_code,
+        "status_code": response.status_code,
         "url": str(response.url),
     }
     
-    if selector:
-        elements = soup.select(selector)
-        result["data"] = parse_elements(elements, output_format)
+    if extract_type == "article":
+        result["data"] = extract_article(soup)
+    elif extract_type == "product":
+        result["data"] = extract_product(soup)
+    elif extract_type == "links":
+        result["data"] = extract_all_links(soup, str(response.url))
+    elif extract_type == "images":
+        result["data"] = extract_all_images(soup, str(response.url))
+    elif extract_type == "custom" and custom_schema:
+        result["data"] = extract_by_schema(soup, custom_schema)
     else:
         result["data"] = parse_full_page(soup)
-        result["text"] = soup.get_text(separator="\n", strip=True)
     
     return result
 
 
-def parse_elements(elements: List, output_format: str) -> Dict[str, Any]:
-    """解析选中的元素"""
-    if output_format == "text":
-        return {
-            "count": len(elements),
-            "items": [el.get_text(strip=True) for el in elements],
-        }
-    
-    items = []
-    for i, el in enumerate(elements):
-        item = {
-            "index": i,
-            "text": el.get_text(strip=True),
-            "tag": el.name,
-        }
-        
-        if el.attrs:
-            item["attributes"] = dict(el.attrs)
-        
-        if el.name == "a" and el.get("href"):
-            item["href"] = el["href"]
-        
-        if el.name == "img" and el.get("src"):
-            item["src"] = el["src"]
-            item["alt"] = el.get("alt", "")
-        
-        items.append(item)
-    
-    return {"count": len(items), "items": items}
-
-
-def parse_full_page(soup: BeautifulSoup) -> Dict[str, Any]:
-    """解析完整页面"""
-    data = {
-        "title": soup.title.string if soup.title else None,
-        "meta": {},
-        "links": [],
-        "images": [],
-        "headings": {},
+def extract_article(soup: BeautifulSoup) -> Dict[str, Any]:
+    """提取文章内容"""
+    article = {
+        "title": None,
+        "content": None,
+        "author": None,
+        "date": None,
+        "summary": None,
     }
     
-    for meta in soup.find_all("meta"):
-        name = meta.get("name") or meta.get("property", "")
-        content = meta.get("content", "")
-        if name and content:
-            data["meta"][name] = content
+    title = soup.find("h1") or soup.find("title")
+    if title:
+        article["title"] = title.get_text(strip=True)
     
-    for link in soup.find_all("a", href=True)[:50]:
-        data["links"].append({
+    content_selectors = ["article", ".post-content", ".article-content", ".entry-content", ".content", "main"]
+    for selector in content_selectors:
+        content_el = soup.select_one(selector)
+        if content_el:
+            for tag in content_el.find_all(["script", "style", "nav", "aside"]):
+                tag.decompose()
+            article["content"] = content_el.get_text(separator="\n", strip=True)
+            break
+    
+    author_selectors = [".author", ".byline", "[rel=author]"]
+    for selector in author_selectors:
+        author_el = soup.select_one(selector)
+        if author_el:
+            article["author"] = author_el.get_text(strip=True)
+            break
+    
+    date_el = soup.find("time") or soup.select_one(".date, .post-date")
+    if date_el:
+        article["date"] = date_el.get("datetime") or date_el.get_text(strip=True)
+    
+    desc = soup.find("meta", attrs={"name": "description"})
+    if desc:
+        article["summary"] = desc.get("content", "")
+    
+    return article
+
+
+def extract_product(soup: BeautifulSoup) -> Dict[str, Any]:
+    """提取产品信息"""
+    product = {
+        "name": None,
+        "price": None,
+        "description": None,
+        "images": [],
+        "availability": None,
+    }
+    
+    name_selectors = ["h1", ".product-title", ".product-name", "[itemprop=name]"]
+    for selector in name_selectors:
+        name_el = soup.select_one(selector)
+        if name_el:
+            product["name"] = name_el.get_text(strip=True)
+            break
+    
+    price_selectors = [".price", ".product-price", "[itemprop=price]", "[data-price]"]
+    for selector in price_selectors:
+        price_el = soup.select_one(selector)
+        if price_el:
+            product["price"] = price_el.get_text(strip=True)
+            break
+    
+    desc_selectors = [".product-description", ".description", "[itemprop=description]"]
+    for selector in desc_selectors:
+        desc_el = soup.select_one(selector)
+        if desc_el:
+            product["description"] = desc_el.get_text(strip=True)
+            break
+    
+    for img in soup.select(".product-image img, .product-images img")[:5]:
+        if img.get("src"):
+            product["images"].append(img["src"])
+    
+    return product
+
+
+def extract_all_links(soup: BeautifulSoup, base_url: str) -> Dict[str, Any]:
+    """提取所有链接"""
+    links = {"internal": [], "external": []}
+    base_domain = urlparse(base_url).netloc
+    
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+        full_url = urljoin(base_url, href)
+        domain = urlparse(full_url).netloc
+        
+        link_info = {
             "text": link.get_text(strip=True),
-            "href": link["href"],
-        })
+            "url": full_url,
+        }
+        
+        if domain == base_domain:
+            links["internal"].append(link_info)
+        else:
+            links["external"].append(link_info)
     
-    for img in soup.find_all("img", src=True)[:30]:
-        data["images"].append({
-            "src": img["src"],
-            "alt": img.get("alt", ""),
-        })
-    
-    for level in range(1, 7):
-        headings = soup.find_all(f"h{level}")
-        if headings:
-            data["headings"][f"h{level}"] = [h.get_text(strip=True) for h in headings]
-    
-    return data
+    return {
+        "total": len(links["intern
