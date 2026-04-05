@@ -28,7 +28,13 @@ class AlipayService:
     def client(self) -> DefaultAlipayClient:
         """延迟初始化客户端"""
         if self._client is None:
+            print(f"[Alipay] 初始化客户端...")
+            print(f"[Alipay] app_id: {settings.alipay_app_id}")
+            print(f"[Alipay] gateway: {'沙箱' if settings.alipay_sandbox else '正式'}")
+            print(f"[Alipay] private_key exists: {bool(settings.alipay_private_key)}")
+            print(f"[Alipay] alipay_public_key exists: {bool(settings.alipay_alipay_public_key)}")
             self._client = self._init_client()
+            print(f"[Alipay] 客户端初始化完成")
         return self._client
     
     def _init_client(self) -> DefaultAlipayClient:
@@ -68,6 +74,8 @@ class AlipayService:
         Returns:
             支付跳转URL
         """
+        print(f"[Alipay] 创建支付链接: {out_trade_no}, 金额: {total_amount}")
+        
         # 创建请求对象
         request = AlipayTradePagePayRequest()
         request.biz_content = {
@@ -79,13 +87,18 @@ class AlipayService:
             "timeout_express": timeout_express,
         }
         request.notify_url = settings.alipay_notify_url
+        print(f"[Alipay] notify_url: {settings.alipay_notify_url}")
         
         # 执行请求
+        print("[Alipay] 执行请求...")
         response = self.client.execute(request)
+        print(f"[Alipay] 响应: {response}")
         
         # 处理响应
         if response and response.get("alipay_trade_page_pay_response"):
-            return response.get("alipay_trade_page_pay_response").get("pay_url")
+            pay_url = response.get("alipay_trade_page_pay_response").get("pay_url")
+            print(f"[Alipay] 支付链接: {pay_url}")
+            return pay_url
         
         raise Exception(f"创建支付链接失败: {response}")
     
