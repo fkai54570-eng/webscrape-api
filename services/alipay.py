@@ -47,8 +47,8 @@ class AlipayService:
         
         # 设置应用配置
         alipay_client_config.app_id = settings.alipay_app_id
-        alipay_client_config.app_private_key = settings.alipay_private_key
-        alipay_client_config.alipay_public_key = settings.alipay_alipay_public_key
+        alipay_client_config.app_private_key = settings.get_alipay_private_key()
+        alipay_client_config.alipay_public_key = settings.get_alipay_public_key()
         alipay_client_config.sign_type = "RSA2"
         
         return DefaultAlipayClient(alipay_client_config)

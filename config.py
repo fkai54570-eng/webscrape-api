@@ -38,10 +38,25 @@ class Settings(BaseSettings):
     
     # 支付宝配置
     alipay_app_id: str = ""  # 沙箱: 9021000162659359, 正式环境替换
-    alipay_private_key: str = ""  # 应用私钥
-    alipay_alipay_public_key: str = ""  # 支付宝公钥
+    alipay_private_key: str = ""  # 应用私钥（支持换行转义：\n）
+    alipay_alipay_public_key: str = ""  # 支付宝公钥（支持换行转义：\n）
     alipay_notify_url: str = ""  # 支付回调地址，如 https://yourdomain.com/api/pay/notify
     alipay_sandbox: bool = True  # 是否使用沙箱环境
+    
+    def get_alipay_private_key(self) -> str:
+        """获取私钥，自动处理换行符转义"""
+        key = self.alipay_private_key
+        if key:
+            # 把 \\n 转成实际换行符
+            key = key.replace("\\n", "\n")
+        return key
+    
+    def get_alipay_public_key(self) -> str:
+        """获取支付宝公钥，自动处理换行符转义"""
+        key = self.alipay_alipay_public_key
+        if key:
+            key = key.replace("\\n", "\n")
+        return key
     
     class Config:
         env_file = ".env"
