@@ -2,6 +2,7 @@
 import json
 import time
 import uuid
+import base64
 from typing import Optional
 from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
 from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
@@ -10,6 +11,48 @@ from alipay.aop.api.request.AlipayTradeQueryRequest import AlipayTradeQueryReque
 
 from config import settings
 
+# 覆盖支付宝SDK的签名函数，使用cryptography库代替有问题的rsa库
+from alipay.aop.api.util import SignatureUtils
+import alipay.aop.api.util.SignatureUtils as su
+
+# 保存原始函数
+_original_sign_with_rsa2 = su.sign_with_rsa2
+
+def _patched_sign_with_rsa2(private_key, sign_content, charset):
+    """使用cryptography库签名的补丁版本"""
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import padding
+    from cryptography.hazmat.backends import default_backend
+    
+    # 如果私钥包含PEM标记，先移除
+    if "-----BEGIN" in private_key:
+        lines = private_key.strip().split('\n')
+        content_lines = [l.strip() for l in lines if not l.startswith('-----')]
+        private_key = ''.join(content_lines)
+    
+    # 尝试加载PKCS#8格式
+    try:
+        der = base64.b64decode(private_key + '=' * (4 - len(private_key) % 4))
+        key_obj = serialization.load_der_private_key(der, password=None, backend=default_backend())
+    except:
+        # 如果失败，尝试作为PKCS#1格式
+        pem = '-----BEGIN RSA PRIVATE KEY-----\n' + private_key + '\n-----END RSA PRIVATE KEY-----'
+        key_obj = serialization.load_pem_private_key(pem.encode(), password=None, backend=default_backend())
+    
+    # 签名
+    if isinstance(sign_content, str):
+        sign_content = sign_content.encode(charset)
+    
+    signature = key_obj.sign(
+        sign_content,
+        padding.PKCS1v15(),
+        hashes.SHA256()
+    )
+    
+    return base64.b64encode(signature).decode(charset)
+
+# 覆盖原函数
+su.sign_with_rsa2 = _patched_sign_with_rsa2
 
 # 沙箱网关
 SANDBOX_GATEWAY = "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
@@ -24,21 +67,6 @@ class AlipayService:
     def __init__(self):
         pass  # 延迟初始化
     
-    def _strip_pem_markers(self, key: str, key_type: str = "private") -> str:
-        """移除PEM标记，返回纯Base64内容（SDK会自动添加标记）"""
-        if not key:
-            return key
-        
-        # 如果有PEM标记，提取纯Base64内容
-        if "-----BEGIN" in key:
-            lines = key.strip().split('\n')
-            content_lines = [l.strip() for l in lines if not l.startswith('-----')]
-            b64_content = ''.join(content_lines)
-            print(f"[Alipay] {key_type} key 移除PEM标记，长度: {len(b64_content)}")
-            return b64_content
-        
-        return key
-    
     @property
     def client(self) -> DefaultAlipayClient:
         """延迟初始化客户端"""
@@ -47,16 +75,12 @@ class AlipayService:
             print(f"[Alipay] app_id: {settings.alipay_app_id}")
             print(f"[Alipay] gateway: {'沙箱' if settings.alipay_sandbox else '正式'}")
             
-            # 获取处理后的密钥
+            # 获取密钥
             private_key = settings.get_alipay_private_key()
             public_key = settings.get_alipay_public_key()
             
-            print(f"[Alipay] raw private_key length: {len(private_key)}")
-            print(f"[Alipay] raw public_key length: {len(public_key)}")
-            
-            # 移除PEM标记（SDK会自动添加）
-            private_key = self._strip_pem_markers(private_key, "private")
-            public_key = self._strip_pem_markers(public_key, "public")
+            print(f"[Alipay] private_key length: {len(private_key)}")
+            print(f"[Alipay] public_key length: {len(public_key)}")
             
             self._client = self._init_client(private_key, public_key)
             print(f"[Alipay] 客户端初始化完成")
