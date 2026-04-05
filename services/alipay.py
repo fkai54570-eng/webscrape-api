@@ -4,20 +4,8 @@ import time
 import uuid
 import base64
 from typing import Optional
-from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
-from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
-from alipay.aop.api.request.AlipayTradePagePayRequest import AlipayTradePagePayRequest
-from alipay.aop.api.request.AlipayTradeQueryRequest import AlipayTradeQueryRequest
 
-from config import settings
-
-# 覆盖支付宝SDK的签名函数，使用cryptography库代替有问题的rsa库
-from alipay.aop.api.util import SignatureUtils
-import alipay.aop.api.util.SignatureUtils as su
-
-# 保存原始函数
-_original_sign_with_rsa2 = su.sign_with_rsa2
-
+# 必须在导入SDK之前覆盖签名函数
 def _patched_sign_with_rsa2(private_key, sign_content, charset):
     """使用cryptography库签名的补丁版本"""
     from cryptography.hazmat.primitives import hashes, serialization
@@ -51,8 +39,18 @@ def _patched_sign_with_rsa2(private_key, sign_content, charset):
     
     return base64.b64encode(signature).decode(charset)
 
-# 覆盖原函数
-su.sign_with_rsa2 = _patched_sign_with_rsa2
+# 先导入模块，然后覆盖函数
+from alipay.aop.api.util.SignatureUtils import sign_with_rsa2
+import alipay.aop.api.util.SignatureUtils
+alipay.aop.api.util.SignatureUtils.sign_with_rsa2 = _patched_sign_with_rsa2
+
+# 现在可以安全导入SDK了
+from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
+from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
+from alipay.aop.api.request.AlipayTradePagePayRequest import AlipayTradePagePayRequest
+from alipay.aop.api.request.AlipayTradeQueryRequest import AlipayTradeQueryRequest
+
+from config import settings
 
 # 沙箱网关
 SANDBOX_GATEWAY = "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
