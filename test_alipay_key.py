@@ -3,42 +3,72 @@ from alipay.aop.api.AlipayClientConfig import AlipayClientConfig
 from alipay.aop.api.DefaultAlipayClient import DefaultAlipayClient
 from alipay.aop.api.request.AlipayTradePagePayRequest import AlipayTradePagePayRequest
 
-# 使用新生成的测试密钥
-test_private_key = """-----BEGIN RSA PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQC1vyY8ZLiReCvKwuVDr5b30PoLku/4A5iJxVTr2Mdg1LyCihlIDC8FBAIP26LU2P/k1TTqLKe3MVz3DlPJ1FL8h/EDvCKSkP23MPuJ3ZhU/pB3HveVssUs9ijd2/XnWaO1fvmOWomIfRFC4IxPDDDj7KItQeT+Ze0hhrsUasOIz18r84yLUj02NewEy/moTUaKKucyBOXT7kdP/Iyx3Bz1avtlvQpXG8CkiHb+6Y+jw6lrBTmQEnKOnRM4hHfeZRtsfpCZWgQ0a+gdua4+2poB1C5akBHBmfuExwh/g6Vvm4ACe7fgKRHb/2wCwr6y54OP/DKPNIemg8slIjBDLPkBAgMBAAECggEAHMSIY1fYBSKd3+bQjlGtVkWMRqe39yxuiSQkiH5UNMYHnqwIS2iuSp9zShpMYF+Gxaxfx09RLsSQAAUTCyfiCNnlst8lI8jyd/w3XH+oXI+8wzYyH05gOnkuR8vI1RlRuelCzB8VlPai9FCBtQNre7BZjUtYWVI94igm1Zj+oVlZGGG0RDzpCJ9CUwn1aW6Cvqd0oMmleKbJtPj+ORptBgYmaBGPSpNa8UTLceAkI7o+1GUHFejrtVliazYnXran89Pr/of7ycMg49sg7yHcUjM5FGbECvD+c7faiyzzP1FSXIjVFs+UdWvTgFHh3eXN+PDexe8uayUifi5vUO1ZdwKBgQDsNqQFZjRKe0NvUeJ6mJBMjGeXvhD+fZoIJQ6jRA6URYI9w7aIltCFkYjX4RPe9vWkIMTsZh1xy91iUQAveyeqW8qEKG5rsDn7i+hZyn0Zc12t5Xb51THo/vzFpRFSV8HA4XTzdqjkcAcQ9z8slYQgBWvcQ9ye8TL3bi+p+RdbNwKBgQDE+IYWgKHI/HX2PowNpJMhUwijEbn6NXBb2YkVfVWLiemkqlrsHHOEgFeR0rZDEdpPHJNCBfBfdPkS3+0mqwdH9sgqcE3LiFr4/tiHXyjKYUnKSq4Nh19wBflKnSiDh62t25bfd+JKpAtibrk0UXFcJOGCzm96+wr4xgo3PGiZhwKBgAPvlSQR4+Up0KHWN3PbfuwHmuJIZHgZF6vzEh9eTu/hiJ4G2M/F04umNSWDtpUMgGNPuHhH602uG+47c0lXP/3ysZkqI0zgDtdGKYT1fsghx/nRzP20s7QyK3wPmA5LMAtKtmwoGgBUbYm21PKlOyJddMKiztZHJpZA28J1SBJZAoGAS0dMP9djfaP3FWhsMF6gmJDacTA6KsU3rvLhsGPZSN4pfHRbEXgCMja2wRWN8O4myCt8oDQS3PigpLUONsQQoVFQyN9o7Aut8RG9AWe9+DLcd8K46JS/RdoSn5CWxkYZe6O78qYnxy0Q6Mq2X6dssrGpuktZUeAWHmPZzah5tYsCgYAQVmGxA9Pq68WZzdQooSisCSchIisoIiRAullfkn8X2EGa97NiKfEwQJ2tktbkna9AJHfV4/HFXqyvKao+D3yS7p/kdP2UcsAaTVXtOuId2H5Fo/2SqKqd36vQ2u0/aHQRxpjv8OdGY2K1cCwdiMWVujq6Kk6X+PxXbW5YURKDrQ==
------END RSA PRIVATE KEY-----"""
+# 使用 PKCS#8 格式的私钥
+private_key = """-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCiZGxwHfWPqLdI
+pvU2odviWLkEUgK5mMAmKosQOovCIe2fWdUY+GqbprmybAxAEO7eXWVgJGlCZsMs
+TFvzY7hnmc7pRHLR5YHWQsIAhOyss+cE/30UeSnsV9b/L126iqNuyP0Ih/FkK1uZ
+GuGr95j7RVu7zPUUQcY+Vv0JJJ1LufL7fjjEJF11ZN9JevRtnfy3KShrhz9rI1UC
+od+jHDB8hdpoFvgxLfI6YSB5UTDczY+VPJhaRFRrnOkgy7Bp3jgF9Rec4qjc4TqU
+paPcj8xDWUAd251azcr3iF9gjNT8Zsd3NtJYFUApUFenD3sJREG+fR9YfQiUon/e
+QJM0p137AgMBAAECggEACngxY/EQ7QtSXB693gdrzUxgpHfdF4LsY6MhuaqGN1fh
+bmdn2hpGu6fXsdPn3kfsZO2q8YEN2dGvCslJf4f4Ul8tYqCesaWVGO+cFLuwWCbc
+SAtotv8wxfBlbg8egQsbI+aIjOcNMW+rxVOUWEMeqJewi4tyAxvsE6AFsQ2cdOgU
+nYjhaOUMDPQM9+CuOguyrtyUGZFiXjqJsHcpMbJjkI4grPee946GO6qrraQ5Kamd
+F3zFDku6aBprj5OVgiBCleDpan0Z8aYm03EOTH1i0yuBm58nyw0LvjeeSBJ1iSA5
+vbRZcjrchmnBj9Ot/Re4KkEv9JZn61kCWhoTeJWKsQKBgQDUBllievQO36ONmX62
+SPRV8M0zOegybtqiqKn99tTu82mqH8Eew2tfs0OQHjNkVKkSt/mo8V/ngwTZ3X/z
+RzCbCB8gsmL1dzQo6hmt4lsOUfIf/QwJH23QroVjeciSg7I5FK8X847Mi0jPmDpX
+YzvYDozEgpgOpCc00YX7TXd69wKBgQDEEspO/hROXekLv348YOR/6mTLQeoi5MTi
+cligTmQRffTHnZosXTa4yL0x0YNSRTrJhv3IU3HetGOV9tYIpZBqL3n17ze4IEiu
+TQdoflt2ofBMzHL8exBEcS81NoeGYWGFbAZpBepOBgHQO38Eb1Oi7uTB7EQkj3V+
+rUNtykkQHQKBgDfM8/lXIqRHd2Ps4cxXpvZ3SYoR02pyglgMy7BrJd89cLG1ab4O
+8FNfeoiTajMdlOG4SZyM6hCkCsLL6MC+G6yxln+kcybnGHMsKVX6HLzIFFEW5/P+
+sYgaZkCn7IGi52TebLaBAzQR9DeueKxHEZjrO2D8fchcq3TbL8fTu35BAoGANBrq
+OGO88bZzH/Qbj+AP2Q5pCrrRhcRVrffFJZSvcxaN3h47wl5jFGgEHyEWTN6o6LU+
+6+WA9TXq4QdfiZy17AIB3yFbJUsvBWLi/RnXJIeUXFRYmk/52rZZXULIcSWfzN0Q
+NwijY2ilQrkM4BjVmQ7zK7WlxjF5f9h7esmu8OECgYAbZ3b0SfogXJI2MvprfsPR
+61jVzkBWFKz4kmozKPBYYKcG4EJORz5hzgXppvN9uAj6zQS7uhXmat8+EqSZxhhW
+vRdGttMDKZ/fe3uzjZc8WQzULn59tzUuUiBmlBhDT1SX+K4Jod59WLvOeU/CZzdC
+IiWODYn7mPk09FNQzZi4Cw==
+-----END PRIVATE KEY-----"""
 
-test_public_key = """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtb8mPGS4kXgrysLlQ6+W99D6C5Lv+AOYicVU69jHYNS8gooZSAwvBQQCD9ui1Nj/5NU06iyntzFc9w5TydRS/IfxA7wikpD9tzD7id2YVP6Qdx73lbLFLPYo3dv151mjtX75jlqJiH0RQuCMTwww4+yiLUHk/mXtIYa7FGrDiM9fK/OMi1I9NjXsBMv5qE1GiirnMgTl0+5HT/yMsdwc9Wr7Zb0KVxvApIh2/umPo8OpawU5kBJyjp0TOIR33mUbbH6QmVoENGvoHbmuPtqaAdQuWpARwZn7hMcIf4Olb5uAAnu34CkR2/9sAsK+sueDj/wyjzSHpoPLJSIwQyz5AQIDAQAB
+# 公钥
+public_key = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAomRscB31j6i3SKb1NqHb
+4li5BFICuZjAJiqLEDqLwiHtn1nVGPhqm6a5smwMQBDu3l1lYCRpQmbDLExb82O4
+Z5nO6URy0eWB1kLCAITsrLPnBP99FHkp7FfW/y9duoqjbsj9CIfxZCtbmRrhq/eY
++0Vbu8z1FEHGPlb9CSSdS7ny+344xCRddWTfSXr0bZ38tykoa4c/ayNVAqHfoxww
+fIXaaBb4MS3yOmEgeVEw3M2PlTyYWkRUa5zpIMuwad44BfUXnOKo3OE6lKWj3I/M
+Q1lAHdudWs3K94hfYIzU/GbHdzbSWBVAKVBXpw97CURBvn0fWH0IlKJ/3kCTNKdd
++wIDAQAB
 -----END PUBLIC KEY-----"""
 
 alipay_client_config = AlipayClientConfig()
 alipay_client_config.server_url = 'https://openapi-sandbox.dl.alipaydev.com/gateway.do'
 alipay_client_config.app_id = '9021000162659359'
-alipay_client_config.app_private_key = test_private_key
-alipay_client_config.alipay_public_key = test_public_key
+alipay_client_config.app_private_key = private_key
+alipay_client_config.alipay_public_key = public_key
 alipay_client_config.sign_type = 'RSA2'
 
-print('Starting client initialization...')
-client = DefaultAlipayClient(alipay_client_config)
-print('Client initialized successfully!')
-
-# Test creating a payment request
-print('Creating payment request...')
-request = AlipayTradePagePayRequest()
-request.biz_content = {
-    "out_trade_no": "TEST123456",
-    "product_code": "FAST_INSTANT_TRADE_PAY",
-    "total_amount": "0.01",
-    "subject": "Test Payment",
-    "timeout_express": "30m",
-}
-request.notify_url = ''
-
+print('Creating client with PKCS#8 key...')
 try:
+    client = DefaultAlipayClient(alipay_client_config)
+    print('Client created successfully!')
+    
+    request = AlipayTradePagePayRequest()
+    request.biz_content = {
+        "out_trade_no": "TEST123456",
+        "product_code": "FAST_INSTANT_TRADE_PAY",
+        "total_amount": "0.01",
+        "subject": "Test Payment",
+        "timeout_express": "30m",
+    }
+    
+    print('Executing request...')
     response = client.execute(request)
     print(f'Response: {response}')
 except Exception as e:
-    print(f'Request failed: {e}')
+    print(f'Failed: {e}')
     import traceback
     traceback.print_exc()
