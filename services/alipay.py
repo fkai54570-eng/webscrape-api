@@ -24,6 +24,25 @@ class AlipayService:
     def __init__(self):
         pass  # 延迟初始化
     
+    def _normalize_key(self, key: str, key_type: str = "private") -> str:
+        """标准化密钥格式 - 移除/添加 BEGIN/END 标记"""
+        if not key:
+            return key
+        
+        # 检测是否是 PEM 格式（带标记）
+        if "-----BEGIN" in key:
+            # 是 PEM 格式，移除标记行，保留纯内容
+            import re
+            lines = key.strip().split('\n')
+            content_lines = []
+            for line in lines:
+                if not (line.startswith('-----BEGIN') or line.startswith('-----END')):
+                    content_lines.append(line.strip())
+            key = ''.join(content_lines)
+            print(f"[Alipay] {key_type} key PEM格式，已转为纯Base64，长度: {len(key)}")
+        
+        return key
+    
     @property
     def client(self) -> DefaultAlipayClient:
         """延迟初始化客户端"""
@@ -32,22 +51,23 @@ class AlipayService:
             print(f"[Alipay] app_id: {settings.alipay_app_id}")
             print(f"[Alipay] gateway: {'沙箱' if settings.alipay_sandbox else '正式'}")
             
-            # 获取处理后的密钥
+            # 获取处理后的密钥（自动处理 PEM 格式）
             private_key = settings.get_alipay_private_key()
             public_key = settings.get_alipay_public_key()
             
-            print(f"[Alipay] raw private_key length: {len(settings.alipay_private_key)}")
-            print(f"[Alipay] processed private_key length: {len(private_key)}")
-            print(f"[Alipay] private_key starts with: {private_key[:50] if private_key else 'EMPTY'}")
-            print(f"[Alipay] private_key ends with: {private_key[-50:] if private_key else 'EMPTY'}")
-            print(f"[Alipay] raw public_key length: {len(settings.alipay_alipay_public_key)}")
-            print(f"[Alipay] processed public_key length: {len(public_key)}")
+            # 标准化格式
+            private_key = self._normalize_key(private_key, "private")
+            public_key = self._normalize_key(public_key, "public")
             
-            self._client = self._init_client()
+            print(f"[Alipay] final private_key length: {len(private_key)}")
+            print(f"[Alipay] final private_key sample: {private_key[:30]}...{private_key[-30:]}")
+            print(f"[Alipay] final public_key length: {len(public_key)}")
+            
+            self._client = self._init_client(private_key, public_key)
             print(f"[Alipay] 客户端初始化完成")
         return self._client
     
-    def _init_client(self) -> DefaultAlipayClient:
+    def _init_client(self, private_key: str, public_key: str) -> DefaultAlipayClient:
         """初始化支付宝客户端"""
         alipay_client_config = AlipayClientConfig()
         
@@ -57,8 +77,8 @@ class AlipayService:
         
         # 设置应用配置
         alipay_client_config.app_id = settings.alipay_app_id
-        alipay_client_config.app_private_key = settings.get_alipay_private_key()
-        alipay_client_config.alipay_public_key = settings.get_alipay_public_key()
+        alipay_client_config.app_private_key = private_key
+        alipay_client_config.alipay_public_key = public_key
         alipay_client_config.sign_type = "RSA2"
         
         return DefaultAlipayClient(alipay_client_config)
