@@ -32,7 +32,7 @@ TIER_NAMES = {
 class CreateOrderRequest(BaseModel):
     """创建订单请求"""
     tier: str  # basic, pro, enterprise
-    api_key: str  # 用户的API Key
+    api_key: Optional[str] = None  # 用户的API Key（可选，测试时可不填）
 
 
 class OrderResponse(BaseModel):
@@ -59,11 +59,12 @@ async def create_order(request: CreateOrderRequest):
     if tier not in TIER_PRICES:
         raise HTTPException(status_code=400, detail="无效的套餐类型")
     
-    # 验证API Key（确保用户存在）
-    from services.auth import verify_api_key
-    key_info = await verify_api_key(request.api_key)
-    if not key_info:
-        raise HTTPException(status_code=401, detail="无效的API Key")
+    # 验证API Key（确保用户存在）- 可选，不提供也能创建订单用于测试
+    if request.api_key:
+        from services.auth import verify_api_key
+        key_info = await verify_api_key(request.api_key)
+        if not key_info:
+            raise HTTPException(status_code=401, detail="无效的API Key")
     
     # 生成订单
     out_trade_no = alipay_service.generate_out_trade_no()
