@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 
 from config import settings
-from routers import scrape, auth, pay
+from routers import scrape, auth
 from models import HealthResponse
 
 
@@ -56,7 +56,14 @@ app.add_middleware(
 # 注册路由
 app.include_router(scrape.router, prefix="/api", tags=["抓取"])
 app.include_router(auth.router, prefix="/api", tags=["认证"])
-app.include_router(pay.router, prefix="/api", tags=["支付"])
+
+# 支付路由 - 延迟导入，避免SDK问题影响其他路由
+try:
+    from routers import pay
+    app.include_router(pay.router, prefix="/api", tags=["支付"])
+    print("✅ 支付模块已加载")
+except Exception as e:
+    print(f"⚠️ 支付模块加载失败: {e}")
 
 
 @app.get("/", response_class=HTMLResponse)
