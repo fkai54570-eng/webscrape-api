@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebScrape API - 网页数据抓取工具</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --green: #22c55e;
+            --orange: #f59e0b;
+            --red: #ef4444;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+        }
+        .header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+        .container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+        .input-group { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .input-group input {
+            flex: 1; min-width: 200px;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        .input-group input:focus { outline: none; border-color: var(--primary); }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+        .options { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .options label {
+            display: flex; align-items: center; gap: 0.35rem;
+            padding: 0.4rem 0.8rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .options input[type="radio"] { display: none; }
+        .options label:has(input:checked) {
+            border-color: var(--primary);
+            background: #eef2ff;
+            color: var(--primary);
+        }
+        .selector-input {
+            width: 100%; padding: 0.5rem 0.75rem;
+            border: 2px solid var(--border); border-radius: 6px;
+            font-size: 0.9rem; margin-bottom: 0.75rem;
+            font-family: monospace;
+        }
+        .selector-input:focus { outline: none; border-color: var(--primary); }
+        .remaining {
+            font-size: 0.85rem; color: var(--text-light);
+            margin-bottom: 1rem;
+        }
+        .remaining span { font-weight: 600; color: var(--primary); }
+        .loading {
+            text-align: center; padding: 2rem;
+            color: var(--text-light);
+        }
+        .loading .spinner {
+            display: inline-block; width: 32px; height: 32px;
+            border: 3px solid var(--border); border-top-color: var(--primary);
+            border-radius: 50%; animation: spin 0.8s linear infinite;
+            margin-bottom: 0.75rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .result-header {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 1rem;
+        }
+        .result-header .url { font-size: 0.85rem; color: var(--text-light); word-break: break-all; }
+        .result-header .status {
+            padding: 0.25rem 0.75rem; border-radius: 20px;
+            font-size: 0.8rem; font-weight: 600;
+        }
+        .status-ok { background: #dcfce7; color: #16a34a; }
+        .status-err { background: #fef2f2; color: #dc2626; }
+        .result-section { margin-bottom: 1.25rem; }
+        .result-section h3 {
+            font-size: 0.95rem; color: var(--text-light);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .result-section pre {
+            background: #f1f5f9; padding: 1rem;
+            border-radius: 8px; overflow-x: auto;
+            font-size: 0.85rem; line-height: 1.5;
+            max-height: 400px; overflow-y: auto;
+        }
+        .result-section .text-content {
+            background: #f1f5f9; padding: 1rem;
+            border-radius: 8px; font-size: 0.9rem;
+            max-height: 400px; overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .result-section .links-list, .result-section .images-list {
+            list-style: none;
+        }
+        .result-section .links-list li, .result-section .images-list li {
+            padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+        .result-section .links-list a { color: var(--primary); text-decoration: none; }
+        .result-section .links-list a:hover { text-decoration: underline; }
+        .error-msg {
+            background: #fef2f2; color: #dc2626;
+            padding: 1rem; border-radius: 8px;
+        }
+        .tabs { display: flex; gap: 0.25rem; margin-bottom: 1rem; }
+        .tab-btn {
+            padding: 0.5rem 1rem; border: none; background: var(--bg);
+            border-radius: 6px; cursor: pointer; font-size: 0.9rem;
+            color: var(--text-light); font-weight: 500;
+        }
+        .tab-btn.active { background: var(--primary); color: white; }
+        .pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .price-card {
+            border: 2px solid var(--border); border-radius: 12px;
+            padding: 1.5rem; text-align: center; transition: all 0.2s;
+        }
+        .price-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .price-card.popular { border-color: var(--primary); position: relative; }
+        .price-card.popular::before {
+            content: "推荐"; position: absolute; top: -12px; left: 50%;
+            transform: translateX(-50%); background: var(--primary);
+            color: white; padding: 0.15rem 0.75rem; border-radius: 10px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .price-card .name { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .price-card .price { font-size: 2rem; font-weight: 800; color: var(--primary); }
+        .price-card .price small { font-size: 0.9rem; font-weight: 400; color: var(--text-light); }
+        .price-card .features { text-align: left; margin: 1rem 0; font-size: 0.9rem; color: var(--text-light); }
+        .price-card .features li { padding: 0.25rem 0; }
+        .features-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        .feature {
+            display: flex; gap: 0.75rem; padding: 1rem;
+            background: #f1f5f9; border-radius: 8px;
+        }
+        .feature .icon { font-size: 1.5rem; }
+        .feature .desc h4 { margin-bottom: 0.25rem; }
+        .feature .desc p { font-size: 0.85rem; color: var(--text-light); }
+        .footer {
+            text-align: center; padding: 2rem 1rem;
+            color: var(--text-light); font-size: 0.85rem;
+        }
+        .copy-btn {
+            background: var(--bg); border: 1px solid var(--border);
+            padding: 0.3rem 0.6rem; border-radius: 4px;
+            cursor: pointer; font-size: 0.8rem;
+        }
+        .copy-btn:hover { background: var(--border); }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.5rem; }
+            .pricing { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>WebScrape API</h1>
+    <p>简单易用的网页数据抓取工具 - 输入网址，获取结构化数据</p>
+</div>
+
+<div class="container">
+    <!-- 抓取工具 -->
+    <div class="card">
+        <h2>网页抓取</h2>
+        <div class="remaining">今日剩余免费次数：<span id="remaining">50</span> 次</div>
+
+        <div class="input-group">
+            <input type="text" id="urlInput" placeholder="输入要抓取的网址，如 https://example.com" />
+            <button class="btn btn-primary" id="scrapeBtn" onclick="doScrape()">开始抓取</button>
+        </div>
+
+        <div class="options">
+            <label><input type="radio" name="mode" value="full" checked> 完整页面</label>
+            <label><input type="radio" name="mode" value="article"> 文章提取</label>
+            <label><input type="radio" name="mode" value="links"> 所有链接</label>
+            <label><input type="radio" name="mode" value="images"> 所有图片</label>
+            <label><input type="radio" name="mode" value="css"> CSS选择器</label>
+        </div>
+
+        <input type="text" class="selector-input" id="selectorInput"
+               placeholder="CSS选择器（仅选择器模式需要），如 .article-title, #content" />
+
+        <div id="resultArea"></div>
+    </div>
+
+    <!-- 定价 -->
+    <div class="card">
+        <h2>定价方案</h2>
+        <div class="pricing">
+            <div class="price-card">
+                <div class="name">免费版</div>
+                <div class="price">免费</div>
+                <ul class="features">
+                    <li>50次/天</li>
+                    <li>基础抓取功能</li>
+                    <li>页面解析</li>
+                    <li>文章提取</li>
+                </ul>
+                <button class="btn" style="background:#f1f5f9;color:var(--text-light)" disabled>当前方案</button>
+            </div>
+            <div class="price-card popular">
+                <div class="name">基础版</div>
+                <div class="price">9.9<small>元/月</small></div>
+                <ul class="features">
+                    <li>5,000次/月</li>
+                    <li>全部抓取模式</li>
+                    <li>CSS选择器</li>
+                    <li>结果缓存</li>
+                    <li>API接口调用</li>
+                </ul>
+                <button class="btn btn-primary" onclick="alert('即将开放，敬请期待！')">即将开放</button>
+            </div>
+            <div class="price-card">
+                <div class="name">专业版</div>
+                <div class="price">29.9<small>元/月</small></div>
+                <ul class="features">
+                    <li>无限次数</li>
+                    <li>自定义提取规则</li>
+                    <li>优先响应</li>
+                    <li>技术支持</li>
+                    <li>API接口调用</li>
+                </ul>
+                <button class="btn btn-primary" onclick="alert('即将开放，敬请期待！')">即将开放</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能特点 -->
+    <div class="card">
+        <h2>功能特点</h2>
+        <div class="features-grid">
+            <div class="feature">
+                <div class="icon">📋</div>
+                <div class="desc">
+                    <h4>文章提取</h4>
+                    <p>智能识别网页中的文章标题、正文、作者、发布时间</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon">🔗</div>
+                <div class="desc">
+                    <h4>链接提取</h4>
+                    <p>提取页面所有链接，区分内部链接和外部链接</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon">🖼️</div>
+                <div class="desc">
+                    <h4>图片提取</h4>
+                    <p>提取页面所有图片URL和alt文本</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon">🎯</div>
+                <div class="desc">
+                    <h4>CSS选择器</h4>
+                    <p>使用CSS选择器精准定位页面元素，获取你需要的数据</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon">🚀</div>
+                <div class="desc">
+                    <h4>API接口</h4>
+                    <p>提供RESTful API，可在代码中直接调用，适合开发者集成</p>
+                </div>
+            </div>
+            <div class="feature">
+                <div class="icon">💾</div>
+                <div class="desc">
+                    <h4>智能缓存</h4>
+                    <p>相同URL自动缓存结果，加快响应速度，节省请求次数</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API文档入口 -->
+    <div class="card" style="text-align:center;">
+        <h2>开发者</h2>
+        <p style="color:var(--text-light);margin-bottom:1rem;">
+            提供完整的 RESTful API，支持自定义抓取参数。
+            <br>查看完整的 API 文档：
+        </p>
+        <a href="/docs" target="_blank" class="btn btn-primary">API 文档</a>
+    </div>
+</div>
+
+<div class="footer">
+    WebScrape API &copy; 2026 &middot; 简单易用的网页数据抓取服务
+</div>
+
+<script>
+function getMode() {
+    return document.querySelector('input[name="mode"]:checked').value;
+}
+
+async function doScrape() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) { alert('请输入网址'); return; }
+
+    const mode = getMode();
+    const selector = document.getElementById('selectorInput').value.trim();
+    const btn = document.getElementById('scrapeBtn');
+    const area = document.getElementById('resultArea');
+
+    btn.disabled = true;
+    btn.textContent = '抓取中...';
+    area.innerHTML = '<div class="loading"><div class="spinner"></div><div>正在抓取，请稍候...</div></div>';
+
+    try {
+        const body = { url };
+        if (mode === 'css' && selector) {
+            body.selector = selector;
+        } else if (mode !== 'full' && mode !== 'css') {
+            body.extract_type = mode;
+        } else if (mode === 'css' && !selector) {
+            area.innerHTML = '<div class="error-msg">CSS选择器模式下请输入选择器</div>';
+            btn.disabled = false; btn.textContent = '开始抓取';
+            return;
+        }
+
+        const resp = await fetch('/api/web/scrape', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+
+        const data = await resp.json();
+
+        if (data.remaining !== undefined) {
+            document.getElementById('remaining').textContent = data.remaining;
+        }
+
+        if (!data.success) {
+            area.innerHTML = `<div class="error-msg">${data.error}</div>`;
+            btn.disabled = false; btn.textContent = '开始抓取';
+            return;
+        }
+
+        renderResult(data, mode);
+    } catch (e) {
+        area.innerHTML = `<div class="error-msg">请求失败: ${e.message}</div>`;
+    }
+
+    btn.disabled = false;
+    btn.textContent = '开始抓取';
+}
+
+function renderResult(data, mode) {
+    const area = document.getElementById('resultArea');
+    let html = '<div class="card" style="margin-top:1rem;">';
+    html += `<div class="result-header">
+        <span class="url">${data.url || ''}</span>
+        <span class="status status-ok">HTTP ${data.status_code || 200}</span>
+    </div>`;
+
+    // Tabs
+    html += '<div class="tabs">';
+    html += '<button class="tab-btn active" onclick="showTab(this,\'tab-preview\')">预览</button>';
+    html += '<button class="tab-btn" onclick="showTab(this,\'tab-json\')">JSON</button>';
+    html += '<button class="tab-btn" onclick="showTab(this,\'tab-text\')">纯文本</button>';
+    html += '</div>';
+
+    // Preview tab
+    html += '<div id="tab-preview">';
+    if (data.data) {
+        const d = data.data;
+        if (d.title) html += `<div class="result-section"><h3>标题</h3><div>${escHtml(d.title)}</div></div>`;
+        if (mode === 'article' || d.author || d.content) {
+            if (d.author) html += `<div class="result-section"><h3>作者</h3><div>${escHtml(d.author)}</div></div>`;
+            if (d.date) html += `<div class="result-section"><h3>日期</h3><div>${escHtml(d.date)}</div></div>`;
+            if (d.summary) html += `<div class="result-section"><h3>摘要</h3><div class="text-content">${escHtml(d.summary)}</div></div>`;
+            if (d.content) html += `<div class="result-section"><h3>正文</h3><div class="text-content">${escHtml(d.content)}</div></div>`;
+        }
+        if (d.items && d.items.length > 0) {
+            html += `<div class="result-section"><h3>提取到 ${d.count} 个元素</h3>`;
+            html += '<div class="text-content">';
+            d.items.forEach((item, i) => {
+                html += `<div style="margin-bottom:0.5rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border)">`;
+                html += `<strong>[${i}]</strong> ${escHtml(item.text || '')}`;
+                if (item.href) html += ` <a href="${escHtml(item.href)}" target="_blank">${escHtml(item.href)}</a>`;
+                if (item.src) html += ` <img src="${escHtml(item.src)}" style="max-width:200px;display:block;margin-top:0.25rem">`;
+                if (item.tag) html += ` <span style="color:var(--text-light);font-size:0.8rem">&lt;${escHtml(item.tag)}&gt;</span>`;
+                html += '</div>';
+            });
+            html += '</div></div>';
+        }
+        if (d.links && d.links.length > 0) {
+            html += `<div class="result-section"><h3>链接 (${d.total || d.links.length}个，内部${d.internal||0} / 外部${d.external||0})</h3><ul class="links-list">`;
+            d.links.slice(0, 50).forEach(l => {
+                html += `<li>${l.internal ? '🏠' : '🌐'} <a href="${escHtml(l.href)}" target="_blank">${escHtml(l.text || l.href)}</a></li>`;
+            });
+            if (d.links.length > 50) html += `<li>... 还有 ${d.links.length - 50} 个链接</li>`;
+            html += '</ul></div>';
+        }
+        if (d.images && d.images.length > 0) {
+            html += `<div class="result-section"><h3>图片 (${d.total || d.images.length}个)</h3><ul class="images-list">`;
+            d.images.slice(0, 30).forEach(img => {
+                html += `<li>🖼️ <a href="${escHtml(img.src)}" target="_blank">${escHtml(img.src)}</a>`;
+                if (img.alt) html += ` (${escHtml(img.alt)})`;
+                html += '</li>';
+            });
+            html += '</ul></div>';
+        }
+        if (d.meta && Object.keys(d.meta).length > 0) {
+            html += '<div class="result-section"><h3>Meta信息</h3><pre>';
+            for (const [k, v] of Object.entries(d.meta)) {
+                html += `${escHtml(k)}: ${escHtml(v)}\n`;
+            }
+            html += '</pre></div>';
+        }
+        if (d.headings && Object.keys(d.headings).length > 0) {
+            html += '<div class="result-section"><h3>标题层级</h3><pre>';
+            for (const [level, items] of Object.entries(d.headings)) {
+                items.forEach(t => { html += `${level}: ${escHtml(t)}\n`; });
+            }
+            html += '</pre></div>';
+        }
+    }
+    html += '</div>';
+
+    // JSON tab
+    const jsonStr = JSON.stringify(data, null, 2);
+    html += `<div id="tab-json" style="display:none"><div class="result-section"><h3>JSON数据 <button class="copy-btn" onclick="copyJson()">复制</button></h3><pre>${escHtml(jsonStr)}</pre></div></div>`;
+
+    // Text tab
+    const textContent = data.text || (data.data && data.data.content) || '';
+    html += `<div id="tab-text" style="display:none"><div class="result-section"><h3>纯文本 <button class="copy-btn" onclick="copyText()">复制</button></h3><div class="text-content">${escHtml(textContent || jsonStr)}</div></div></div>`;
+
+    html += '</div>';
+    area.innerHTML = html;
+
+    // Store for copy
+    window._jsonStr = jsonStr;
+    window._textContent = textContent || jsonStr;
+}
+
+function showTab(btn, tabId) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['tab-preview', 'tab-json', 'tab-text'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = id === tabId ? '' : 'none';
+    });
+}
+
+function copyJson() {
+    navigator.clipboard.writeText(window._jsonStr || '');
+    alert('已复制JSON数据');
+}
+function copyText() {
+    navigator.clipboard.writeText(window._textContent || '');
+    alert('已复制纯文本');
+}
+
+function escHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Enter key
+document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doScrape();
+});
+
+// Show/hide selector input
+document.querySelectorAll('input[name="mode"]').forEach(r => {
+    r.addEventListener('change', () => {
+        document.getElementById('selectorInput').style.display =
+            r.value === 'css' ? 'block' : 'none';
+    });
+});
+document.getElementById('selectorInput').style.display = 'none';
+</script>
+
+</body>
+</html>
