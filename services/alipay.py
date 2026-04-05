@@ -25,22 +25,17 @@ class AlipayService:
         pass  # 延迟初始化
     
     def _normalize_key(self, key: str, key_type: str = "private") -> str:
-        """标准化密钥格式 - 移除/添加 BEGIN/END 标记"""
+        """标准化密钥格式 - 保持原始格式"""
         if not key:
             return key
         
-        # 检测是否是 PEM 格式（带标记）
+        # 如果是PEM格式，直接返回（SDK内部会处理）
         if "-----BEGIN" in key:
-            # 是 PEM 格式，移除标记行，保留纯内容
-            import re
-            lines = key.strip().split('\n')
-            content_lines = []
-            for line in lines:
-                if not (line.startswith('-----BEGIN') or line.startswith('-----END')):
-                    content_lines.append(line.strip())
-            key = ''.join(content_lines)
-            print(f"[Alipay] {key_type} key PEM格式，已转为纯Base64，长度: {len(key)}")
+            print(f"[Alipay] {key_type} key 是PEM格式，直接使用")
+            return key
         
+        # 如果是纯Base64（可能带换行的\n转义），也直接返回
+        print(f"[Alipay] {key_type} key 长度: {len(key)}")
         return key
     
     @property
