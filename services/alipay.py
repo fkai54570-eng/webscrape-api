@@ -19,8 +19,17 @@ PRODUCTION_GATEWAY = "https://openapi.alipay.com/gateway.do"
 class AlipayService:
     """支付宝支付服务"""
     
+    _client: Optional[DefaultAlipayClient] = None
+    
     def __init__(self):
-        self.client = self._init_client()
+        pass  # 延迟初始化
+    
+    @property
+    def client(self) -> DefaultAlipayClient:
+        """延迟初始化客户端"""
+        if self._client is None:
+            self._client = self._init_client()
+        return self._client
     
     def _init_client(self) -> DefaultAlipayClient:
         """初始化支付宝客户端"""
