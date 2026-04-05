@@ -54,3 +54,37 @@ async def get_key_info(api_key: str) -> Optional[APIKeyInfo]:
     if not row:
         return None
     return APIKeyInfo(key=row["key"], tier=row["tier"], usage=row["usage"], limit=row["limit"], created_at=datetime.fromisoformat(row["created_at"]))
+
+
+async def update_api_key_tier(api_key: str, tier: str) -> bool:
+    """
+    更新API Key的套餐等级
+    
+    Args:
+        api_key: API Key
+        tier: 套餐类型 (basic, pro, enterprise)
+    
+    Returns:
+        是否更新成功
+    """
+    limits = {
+        "free": settings.free_tier_limit,
+        "basic": settings.basic_tier_limit,
+        "pro": settings.pro_tier_limit,
+        "enterprise": 999999999,  # 企业版无限制
+    }
+    new_limit = limits.get(tier, settings.free_tier_limit)
+    
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE api_keys SET tier = ?, \"limit\" = ? WHERE key = ?",
+            (tier, new_limit, api_key)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        conn.close()
+        print(f"[Auth] 更新套餐失败: {e}")
+        return False

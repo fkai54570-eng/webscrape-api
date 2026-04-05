@@ -36,6 +36,13 @@ class Settings(BaseSettings):
     basic_tier_limit: int = 5000
     pro_tier_limit: int = 25000
     
+    # 支付宝配置
+    alipay_app_id: str = ""  # 沙箱: 9021000162659359, 正式环境替换
+    alipay_private_key: str = ""  # 应用私钥
+    alipay_alipay_public_key: str = ""  # 支付宝公钥
+    alipay_notify_url: str = ""  # 支付回调地址，如 https://yourdomain.com/api/pay/notify
+    alipay_sandbox: bool = True  # 是否使用沙箱环境
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

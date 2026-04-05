@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 
 from config import settings
-from routers import scrape, auth
+from routers import scrape, auth, pay
 from models import HealthResponse
 
 
@@ -56,6 +56,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(scrape.router, prefix="/api", tags=["抓取"])
 app.include_router(auth.router, prefix="/api", tags=["认证"])
+app.include_router(pay.router, prefix="/api", tags=["支付"])
 
 
 @app.get("/", response_class=HTMLResponse)
