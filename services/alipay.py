@@ -24,19 +24,50 @@ class AlipayService:
     def __init__(self):
         pass  # 延迟初始化
     
-    def _normalize_key(self, key: str, key_type: str = "private") -> str:
-        """标准化密钥格式 - 保持原始格式"""
-        if not key:
-            return key
+    def _convert_to_pkcs8(self, private_key: str) -> str:
+        """将PKCS#1格式的RSA私钥转换为PKCS#8格式"""
+        if not private_key or "-----BEGIN" not in private_key:
+            return private_key
         
-        # 如果是PEM格式，直接返回（SDK内部会处理）
-        if "-----BEGIN" in key:
-            print(f"[Alipay] {key_type} key 是PEM格式，直接使用")
-            return key
+        # 如果已经是PKCS#8格式，直接返回
+        if "-----BEGIN PRIVATE KEY-----" in private_key:
+            return private_key
         
-        # 如果是纯Base64（可能带换行的\n转义），也直接返回
-        print(f"[Alipay] {key_type} key 长度: {len(key)}")
-        return key
+        # 否则转换为PKCS#8格式
+        try:
+            from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            from cryptography.hazmat.backends import default_backend
+            import base64
+            
+            # 提取Base64内容
+            lines = private_key.strip().split('\n')
+            content_lines = [l for l in lines if not l.startswith('-----')]
+            b64_content = ''.join(content_lines)
+            
+            # 解码DER
+            der_content = base64.b64decode(b64_content + '=' * (4 - len(b64_content) % 4))
+            
+            # 使用cryptography加载PKCS#1格式
+            private_key_obj = serialization.load_der_private_key(
+                der_content,
+                password=None,
+                backend=default_backend()
+            )
+            
+            # 导出为PKCS#8格式
+            pkcs8_pem = private_key_obj.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=serialization.NoEncryption()
+            )
+            
+            print(f"[Alipay] 私钥已从PKCS#1转换为PKCS#8格式")
+            return pkcs8_pem.decode('utf-8')
+            
+        except Exception as e:
+            print(f"[Alipay] 密钥转换失败，使用原始格式: {e}")
+            return private_key
     
     @property
     def client(self) -> DefaultAlipayClient:
@@ -46,17 +77,15 @@ class AlipayService:
             print(f"[Alipay] app_id: {settings.alipay_app_id}")
             print(f"[Alipay] gateway: {'沙箱' if settings.alipay_sandbox else '正式'}")
             
-            # 获取处理后的密钥（自动处理 PEM 格式）
+            # 获取处理后的密钥
             private_key = settings.get_alipay_private_key()
             public_key = settings.get_alipay_public_key()
             
-            # 标准化格式
-            private_key = self._normalize_key(private_key, "private")
-            public_key = self._normalize_key(public_key, "public")
+            print(f"[Alipay] private_key length: {len(private_key)}")
+            print(f"[Alipay] public_key length: {len(public_key)}")
             
-            print(f"[Alipay] final private_key length: {len(private_key)}")
-            print(f"[Alipay] final private_key sample: {private_key[:30]}...{private_key[-30:]}")
-            print(f"[Alipay] final public_key length: {len(public_key)}")
+            # 转换私钥格式为PKCS#8（SDK需要的格式）
+            private_key = self._convert_to_pkcs8(private_key)
             
             self._client = self._init_client(private_key, public_key)
             print(f"[Alipay] 客户端初始化完成")
