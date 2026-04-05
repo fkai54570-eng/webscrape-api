@@ -54,10 +54,15 @@ async def create_order(request: CreateOrderRequest):
     
     返回支付链接或APP支付参数
     """
+    print(f"[Pay] 收到创建订单请求: tier={request.tier}")
+    
     # 验证套餐
     tier = request.tier.lower()
     if tier not in TIER_PRICES:
+        print(f"[Pay] 无效的套餐类型: {tier}")
         raise HTTPException(status_code=400, detail="无效的套餐类型")
+    
+    print(f"[Pay] 套餐验证通过: {tier}, 价格: {TIER_PRICES[tier]}")
     
     # 验证API Key（确保用户存在）- 可选，不提供也能创建订单用于测试
     if request.api_key:
@@ -84,14 +89,18 @@ async def create_order(request: CreateOrderRequest):
     await set_cached(order_key, order_data, ttl=1800)
     
     try:
+        print(f"[Pay] 生成订单号: {out_trade_no}")
+        
         # 创建电脑网站支付链接
         pay_url = alipay_service.create_trade_page_url(
             out_trade_no=out_trade_no,
             total_amount=amount,
             subject=f"WebScrape API - {subject}",
-            body=f"购买{subject}，API Key: {request.api_key[:8]}...",
+            body=f"购买{subject}",
             timeout_express="30m",
         )
+        
+        print(f"[Pay] 支付链接创建成功: {pay_url}")
         
         return OrderResponse(
             success=True,
@@ -103,6 +112,9 @@ async def create_order(request: CreateOrderRequest):
         )
         
     except Exception as e:
+        import traceback
+        print(f"[Pay] 创建订单失败: {e}")
+        print(f"[Pay] 详细错误: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"创建订单失败: {str(e)}")
 
 
