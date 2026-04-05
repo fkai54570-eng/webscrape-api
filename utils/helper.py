@@ -2,6 +2,7 @@
 import time
 import hashlib
 from typing import Optional
+from functools import wraps
 
 def measure_time(func):
     @wraps(func)
