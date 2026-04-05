@@ -138,8 +138,15 @@ class AlipayService:
         
         # 执行请求
         print("[Alipay] 执行请求...")
-        response = self.client.execute(request)
-        print(f"[Alipay] 响应: {response}")
+        try:
+            response = self.client.execute(request)
+            print(f"[Alipay] 响应: {response}")
+        except Exception as e:
+            # 如果是响应解码问题，尝试获取原始响应
+            if "utf-8" in str(e) or "decode" in str(e).lower():
+                print(f"[Alipay] 响应解码失败，可能是编码问题")
+                raise Exception(f"支付宝响应解码失败，请检查网络和配置: {e}")
+            raise
         
         # 处理响应
         if response and response.get("alipay_trade_page_pay_response"):
