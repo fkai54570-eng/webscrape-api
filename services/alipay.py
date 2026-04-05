@@ -31,8 +31,18 @@ class AlipayService:
             print(f"[Alipay] 初始化客户端...")
             print(f"[Alipay] app_id: {settings.alipay_app_id}")
             print(f"[Alipay] gateway: {'沙箱' if settings.alipay_sandbox else '正式'}")
-            print(f"[Alipay] private_key exists: {bool(settings.alipay_private_key)}")
-            print(f"[Alipay] alipay_public_key exists: {bool(settings.alipay_alipay_public_key)}")
+            
+            # 获取处理后的密钥
+            private_key = settings.get_alipay_private_key()
+            public_key = settings.get_alipay_public_key()
+            
+            print(f"[Alipay] raw private_key length: {len(settings.alipay_private_key)}")
+            print(f"[Alipay] processed private_key length: {len(private_key)}")
+            print(f"[Alipay] private_key starts with: {private_key[:50] if private_key else 'EMPTY'}")
+            print(f"[Alipay] private_key ends with: {private_key[-50:] if private_key else 'EMPTY'}")
+            print(f"[Alipay] raw public_key length: {len(settings.alipay_alipay_public_key)}")
+            print(f"[Alipay] processed public_key length: {len(public_key)}")
+            
             self._client = self._init_client()
             print(f"[Alipay] 客户端初始化完成")
         return self._client
