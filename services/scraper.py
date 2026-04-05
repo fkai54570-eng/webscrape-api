@@ -100,4 +100,97 @@ def extract_article(soup: BeautifulSoup) -> Dict[str, Any]:
                 tag.decompose()
             article["content"] = content_el.get_text(separator="\n", strip=True)
             break
-    for selector in [".author", ".byli
+    for selector in [".author", ".byline", ".post-author", ".article-author", "[rel='author']", ".fn", ".author-name", ".writer"]:
+        author_el = soup.select_one(selector)
+        if author_el:
+            article["author"] = author_el.get_text(strip=True)
+            break
+    for selector in [".publish-date", ".post-date", ".article-date", "time", ".date", ".entry-date", "[datetime]"]:
+        date_el = soup.select_one(selector)
+        if date_el:
+            article["date"] = date_el.get("datetime") or date_el.get("content") or date_el.get_text(strip=True)
+            if article["date"]:
+                break
+    if article["content"]:
+        text = article["content"]
+        article["summary"] = text[:500] + ("..." if len(text) > 500 else "")
+    return article
+
+
+def extract_product(soup: BeautifulSoup) -> Dict[str, Any]:
+    """提取商品信息"""
+    product = {"name": None, "price": None, "description": None, "images": [], "rating": None, "reviews": None}
+    title = soup.find("h1") or soup.find("title")
+    if title:
+        product["name"] = title.get_text(strip=True)
+    for selector in [".price", ".product-price", "[data-price]", ".current-price", "#price"]:
+        price_el = soup.select_one(selector)
+        if price_el:
+            product["price"] = price_el.get_text(strip=True)
+            break
+    for selector in [".description", ".product-description", "#description", ".product-details"]:
+        desc_el = soup.select_one(selector)
+        if desc_el:
+            product["description"] = desc_el.get_text(separator="\n", strip=True)[:1000]
+            break
+    for selector in [".rating", ".product-rating", "[data-rating]", ".stars"]:
+        rating_el = soup.select_one(selector)
+        if rating_el:
+            rating_text = rating_el.get_text(strip=True) or rating_el.get("data-rating", "")
+            if rating_text:
+                product["rating"] = rating_text
+            break
+    for selector in [".reviews", ".product-reviews", "#reviews-count", ".review-count"]:
+        reviews_el = soup.select_one(selector)
+        if reviews_el:
+            product["reviews"] = reviews_el.get_text(strip=True)
+            break
+    for img in soup.find_all("img", src=True)[:20]:
+        src = img.get("src", "")
+        if src and ("product" in src.lower() or "item" in src.lower() or img.get("class") and any("product" in str(c).lower() for c in img.get("class", []))):
+            product["images"].append({"src": src, "alt": img.get("alt", "")})
+    return product
+
+
+def extract_all_links(soup: BeautifulSoup, base_url: str) -> Dict[str, Any]:
+    """提取页面所有链接"""
+    links = []
+    for a in soup.find_all("a", href=True):
+        href = a["href"]
+        full_url = urljoin(base_url, href)
+        links.append({
+            "text": a.get_text(strip=True),
+            "href": full_url,
+            "internal": urlparse(full_url).netloc == urlparse(base_url).netloc,
+        })
+    return {"total": len(links), "internal": len([l for l in links if l["internal"]]), "external": len([l for l in links if not l["internal"]]), "links": links}
+
+
+def extract_all_images(soup: BeautifulSoup, base_url: str) -> Dict[str, Any]:
+    """提取页面所有图片"""
+    images = []
+    for img in soup.find_all("img", src=True):
+        src = img["src"]
+        full_url = urljoin(base_url, src)
+        images.append({
+            "src": full_url,
+            "alt": img.get("alt", ""),
+            "width": img.get("width"),
+            "height": img.get("height"),
+        })
+    return {"total": len(images), "images": images}
+
+
+def extract_by_schema(soup: BeautifulSoup, schema: Dict[str, str]) -> Dict[str, Any]:
+    """根据自定义schema提取数据"""
+    result = {}
+    for field_name, selector in schema.items():
+        elements = soup.select(selector)
+        if elements:
+            if len(elements) == 1:
+                result[field_name] = elements[0].get_text(strip=True)
+            else:
+                result[field_name] = [el.get_text(strip=True) for el in elements]
+        else:
+            result[field_name] = None
+    return result
